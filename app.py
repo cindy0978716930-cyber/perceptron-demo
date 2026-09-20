@@ -1,172 +1,220 @@
-import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
 
-st.set_page_config(
-    page_title="Perceptron Demo",
-    page_icon="🧠",
-    layout="wide"
-)
-
-st.title("🧠 Perceptron Demonstration")
-st.write(
-    "HW1 — Basic Case, Complex Case, "
-    "and Linear Unseparable Case"
-)
 
 # ============================================================
-# Basic functions
+# HW1 - Perceptron Demo
+#
+# Part 1: Basic Case - AND Gate (class example)
+# Part 2: Complex Case - Linearly Separable Data
+# Part 3: Linear Unseparable Case - XOR
 # ============================================================
 
+
+# ------------------------------------------------------------
+# Perceptron activation function
+# hardlim(n):
+#     n >= 0  -> 1
+#     n < 0   -> 0
+# ------------------------------------------------------------
 def hardlim(n):
-    """Hard limit activation function."""
-    return 1 if n >= 0 else 0
+    if n >= 0:
+        return 1
+    else:
+        return 0
 
 
-def one_epoch(X, targets, weights, bias, learning_rate=1):
-    """
-    Train the perceptron for one epoch.
-    Return updated weights, bias, and step-by-step records.
-    """
-    weights = weights.copy()
-    records = []
-    error_count = 0
+# ------------------------------------------------------------
+# Perceptron training function
+#
+# n = W dot p + b
+# a = hardlim(n)
+# e = t - a
+#
+# W(new) = W(old) + learning_rate * e * p
+# b(new) = b(old) + learning_rate * e
+# ------------------------------------------------------------
+def train_perceptron(X, targets, initial_weights,
+                     initial_bias=0, learning_rate=1,
+                     max_epochs=20, show_steps=True):
 
-    for i in range(len(X)):
-        p = X[i]
-        t = targets[i]
-
-        old_w = weights.copy()
-        old_b = bias
-
-        # Forward
-        n = np.dot(weights, p) + bias
-        a = hardlim(n)
-
-        # Error
-        e = t - a
-
-        # Update
-        weights = weights + learning_rate * e * p
-        bias = bias + learning_rate * e
-
-        if e != 0:
-            error_count += 1
-
-        records.append({
-            "Sample": i + 1,
-            "Input p": str(tuple(p.astype(int))),
-            "Target t": int(t),
-            "Old W": str(old_w),
-            "Old b": old_b,
-            "n = W·p+b": n,
-            "Output a": a,
-            "Error e": e,
-            "New W": str(weights),
-            "New b": bias
-        })
-
-    return weights, bias, records, error_count
-
-
-def train_until_end(
-    X,
-    targets,
-    initial_weights,
-    initial_bias,
-    learning_rate=1,
-    max_epochs=20
-):
-    """Train until convergence or maximum number of epochs."""
     weights = np.array(initial_weights, dtype=float)
     bias = float(initial_bias)
 
-    all_records = []
-    errors = []
-    boundary_history = []
+    # Store information for plotting
+    history = []
+    errors_per_epoch = []
+
+    print("\nInitial condition")
+    print("W =", weights)
+    print("b =", bias)
+    print("Learning rate =", learning_rate)
 
     for epoch in range(1, max_epochs + 1):
 
-        weights, bias, records, error_count = one_epoch(
-            X,
-            targets,
-            weights,
-            bias,
-            learning_rate
-        )
+        print("\n" + "=" * 65)
+        print(f"Epoch {epoch}")
+        print("=" * 65)
 
-        for record in records:
-            record["Epoch"] = epoch
+        error_count = 0
 
-        all_records.extend(records)
-        errors.append(error_count)
-        boundary_history.append((weights.copy(), bias))
+        for i in range(len(X)):
 
+            p = X[i]
+            t = targets[i]
+
+            # Save old values
+            old_weights = weights.copy()
+            old_bias = bias
+
+            # Step 1: calculate net input
+            n = np.dot(weights, p) + bias
+
+            # Step 2: activation function
+            a = hardlim(n)
+
+            # Step 3: calculate error
+            e = t - a
+
+            # Step 4: update weights and bias
+            weights = weights + learning_rate * e * p
+            bias = bias + learning_rate * e
+
+            if e != 0:
+                error_count += 1
+
+            # Save history
+            history.append({
+                "epoch": epoch,
+                "sample": i + 1,
+                "input": p.copy(),
+                "target": t,
+                "old_weights": old_weights.copy(),
+                "old_bias": old_bias,
+                "net": n,
+                "output": a,
+                "error": e,
+                "new_weights": weights.copy(),
+                "new_bias": bias
+            })
+
+            # Show step-by-step process
+            if show_steps:
+                print(f"\nSample {i + 1}")
+                print(f"Input p        = {p}")
+                print(f"Target t       = {t}")
+                print(f"Current W      = {old_weights}")
+                print(f"Current b      = {old_bias:.2f}")
+
+                print("\nForward:")
+                print(f"n = W dot p + b = {n:.2f}")
+                print(f"a = hardlim(n)  = {a}")
+
+                print("\nError:")
+                print(f"e = t - a       = {t} - {a} = {e}")
+
+                if e == 0:
+                    print("Correct -> no weight update")
+                else:
+                    print("\nUpdate:")
+                    print(
+                        f"W(new) = W(old) + eta * e * p"
+                    )
+                    print(
+                        f"       = {old_weights} + "
+                        f"{learning_rate} * {e} * {p}"
+                    )
+                    print(f"       = {weights}")
+
+                    print(
+                        f"b(new) = {old_bias:.2f} + "
+                        f"{learning_rate} * {e}"
+                    )
+                    print(f"       = {bias:.2f}")
+
+        errors_per_epoch.append(error_count)
+
+        print("\n-----------------------------------")
+        print(f"Epoch {epoch} finished")
+        print(f"Number of errors = {error_count}")
+        print(f"W = {weights}")
+        print(f"b = {bias:.2f}")
+        print("-----------------------------------")
+
+        # If no errors, training has converged
         if error_count == 0:
-            return (
-                weights,
-                bias,
-                all_records,
-                errors,
-                True,
-                epoch,
-                boundary_history
-            )
+            print(f"\n*** Converged at Epoch {epoch}! ***")
+            return weights, bias, history, errors_per_epoch, True
 
-    return (
-        weights,
-        bias,
-        all_records,
-        errors,
-        False,
-        max_epochs,
-        boundary_history
-    )
+    print("\n*** Did NOT converge within the maximum epochs. ***")
+
+    return weights, bias, history, errors_per_epoch, False
 
 
-def draw_boundary(X, targets, weights, bias, title):
-    """Draw data points and current decision boundary."""
+# ------------------------------------------------------------
+# Prediction
+# ------------------------------------------------------------
+def predict(X, weights, bias):
 
-    fig, ax = plt.subplots(figsize=(6, 5))
+    predictions = []
 
+    for p in X:
+        n = np.dot(weights, p) + bias
+        a = hardlim(n)
+        predictions.append(a)
+
+    return np.array(predictions)
+
+
+# ------------------------------------------------------------
+# Plot data and decision boundary
+# ------------------------------------------------------------
+def plot_decision_boundary(X, targets, weights, bias, title):
+
+    plt.figure(figsize=(7, 6))
+
+    # Class 0
     class0 = X[targets == 0]
+
+    # Class 1
     class1 = X[targets == 1]
 
-    ax.scatter(
+    plt.scatter(
         class0[:, 0],
         class0[:, 1],
-        s=100,
         marker="o",
+        s=100,
         label="Class 0"
     )
 
-    ax.scatter(
+    plt.scatter(
         class1[:, 0],
         class1[:, 1],
-        s=100,
         marker="x",
+        s=100,
         label="Class 1"
     )
 
-    margin = 1
-    xmin = np.min(X[:, 0]) - margin
-    xmax = np.max(X[:, 0]) + margin
-    ymin = np.min(X[:, 1]) - margin
-    ymax = np.max(X[:, 1]) + margin
+    # Decision boundary:
+    #
+    # w1*x1 + w2*x2 + b = 0
+    #
+    # x2 = -(w1*x1 + b) / w2
+    #
+    x_min = np.min(X[:, 0]) - 1
+    x_max = np.max(X[:, 0]) + 1
 
-    # W1*x1 + W2*x2 + b = 0
     if abs(weights[1]) > 1e-10:
 
-        x_values = np.linspace(xmin, xmax, 200)
+        x_values = np.linspace(x_min, x_max, 200)
 
         y_values = -(
             weights[0] * x_values + bias
         ) / weights[1]
 
-        ax.plot(
+        plt.plot(
             x_values,
             y_values,
-            linewidth=2,
             label="Decision Boundary"
         )
 
@@ -174,64 +222,31 @@ def draw_boundary(X, targets, weights, bias, title):
 
         x_boundary = -bias / weights[0]
 
-        ax.axvline(
-            x_boundary,
-            linewidth=2,
+        plt.axvline(
+            x=x_boundary,
             label="Decision Boundary"
         )
 
-    ax.set_xlim(xmin, xmax)
-    ax.set_ylim(ymin, ymax)
-
-    ax.set_xlabel("p1")
-    ax.set_ylabel("p2")
-    ax.set_title(title)
-
-    ax.grid(True)
-    ax.legend()
-
-    return fig
+    plt.xlabel("p1")
+    plt.ylabel("p2")
+    plt.title(title)
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
 
 
 # ============================================================
-# Sidebar
+# PART 1
+# Basic Case: AND Gate
 # ============================================================
+def part1_and():
 
-st.sidebar.header("Control Panel")
+    print("\n")
+    print("#" * 70)
+    print("PART 1 - BASIC CASE: AND GATE")
+    print("#" * 70)
 
-mode = st.sidebar.selectbox(
-    "Choose a demonstration mode",
-    [
-        "1. Basic Case — AND Gate",
-        "2. Complex Case — Linearly Separable",
-        "3. Linear Unseparable Case — XOR"
-    ]
-)
-
-st.sidebar.divider()
-
-st.sidebar.write("### Perceptron Formula")
-
-st.sidebar.latex(r"n = Wp + b")
-st.sidebar.latex(r"a = hardlim(n)")
-st.sidebar.latex(r"e = t-a")
-st.sidebar.latex(r"W_{new}=W_{old}+\eta ep^T")
-st.sidebar.latex(r"b_{new}=b_{old}+\eta e")
-
-
-# ============================================================
-# PART 1 — AND
-# ============================================================
-
-if mode == "1. Basic Case — AND Gate":
-
-    st.header("Part 1 — Basic Case: AND Gate")
-
-    st.info(
-        "This mode reproduces the classroom example "
-        "step by step."
-    )
-
+    # AND truth table
     X = np.array([
         [0, 0],
         [0, 1],
@@ -239,199 +254,77 @@ if mode == "1. Basic Case — AND Gate":
         [1, 1]
     ], dtype=float)
 
-    targets = np.array([0, 0, 0, 1])
+    targets = np.array([
+        0,
+        0,
+        0,
+        1
+    ])
 
-    st.subheader("Training Data")
+    # Same initial condition as the classroom example
+    initial_weights = [1, 2]
+    initial_bias = 0
+    learning_rate = 1
 
-    st.table({
-        "p1": [0, 0, 1, 1],
-        "p2": [0, 1, 0, 1],
-        "Target t": [0, 0, 0, 1]
-    })
-
-    st.write("### Initial Conditions")
-
-    col1, col2, col3 = st.columns(3)
-
-    col1.metric("Initial W", "[1, 2]")
-    col2.metric("Initial b", "0")
-    col3.metric("Learning Rate η", "1")
-
-    st.divider()
-
-    if "and_step" not in st.session_state:
-        st.session_state.and_step = 0
-
-    # Pre-calculate all steps
-    weights = np.array([1.0, 2.0])
-    bias = 0.0
-    steps = []
-
-    for epoch in range(1, 10):
-
-        errors = 0
-
-        for i in range(len(X)):
-
-            p = X[i]
-            t = targets[i]
-
-            old_w = weights.copy()
-            old_b = bias
-
-            n = np.dot(weights, p) + bias
-            a = hardlim(n)
-            e = t - a
-
-            weights = weights + e * p
-            bias = bias + e
-
-            if e != 0:
-                errors += 1
-
-            steps.append({
-                "epoch": epoch,
-                "sample": i + 1,
-                "p": p.copy(),
-                "t": t,
-                "old_w": old_w,
-                "old_b": old_b,
-                "n": n,
-                "a": a,
-                "e": e,
-                "new_w": weights.copy(),
-                "new_b": bias
-            })
-
-        if errors == 0:
-            break
-
-    st.subheader("Step-by-Step Learning")
-
-    c1, c2, c3 = st.columns(3)
-
-    if c1.button("⬅ Previous Step"):
-        if st.session_state.and_step > 0:
-            st.session_state.and_step -= 1
-
-    if c2.button("➡ Next Step"):
-        if st.session_state.and_step < len(steps) - 1:
-            st.session_state.and_step += 1
-
-    if c3.button("🔄 Reset"):
-        st.session_state.and_step = 0
-
-    step = steps[st.session_state.and_step]
-
-    st.progress(
-        (st.session_state.and_step + 1) / len(steps)
+    weights, bias, history, errors, converged = train_perceptron(
+        X,
+        targets,
+        initial_weights=initial_weights,
+        initial_bias=initial_bias,
+        learning_rate=learning_rate,
+        max_epochs=10,
+        show_steps=True
     )
 
-    st.write(
-        f"### Epoch {step['epoch']} — "
-        f"Sample {step['sample']}"
+    predictions = predict(X, weights, bias)
+
+    print("\n")
+    print("=" * 50)
+    print("PART 1 FINAL RESULT")
+    print("=" * 50)
+
+    print("Final W =", weights)
+    print("Final b =", bias)
+
+    print("\nPrediction:")
+    print("p1 p2 | Target | Prediction")
+
+    for p, t, a in zip(X, targets, predictions):
+        print(
+            f"{int(p[0])}  {int(p[1])}  |"
+            f"   {t}    |     {a}"
+        )
+
+    print("\nExpected classroom result:")
+    print("W = [1, 1]")
+    print("b = -2")
+    print("Decision boundary:")
+    print("p1 + p2 - 2 = 0")
+
+    plot_decision_boundary(
+        X,
+        targets,
+        weights,
+        bias,
+        "Part 1: Perceptron Learning AND Gate"
     )
-
-    left, right = st.columns(2)
-
-    with left:
-
-        st.write("#### Current Sample")
-
-        st.write(
-            f"**Input:** p = "
-            f"({int(step['p'][0])}, "
-            f"{int(step['p'][1])})"
-        )
-
-        st.write(f"**Target:** t = {step['t']}")
-
-        st.write(
-            f"**Current W:** {step['old_w']}"
-        )
-
-        st.write(
-            f"**Current b:** {step['old_b']}"
-        )
-
-        st.write("#### ① Forward")
-
-        st.latex(
-            rf"n = Wp+b = {step['n']:.1f}"
-        )
-
-        st.latex(
-            rf"a = hardlim(n) = {step['a']}"
-        )
-
-        st.write("#### ② Error")
-
-        st.latex(
-            rf"e=t-a={step['t']}-{step['a']}"
-            rf"={step['e']}"
-        )
-
-        st.write("#### ③ Update")
-
-        if step["e"] == 0:
-            st.success(
-                "Correct prediction → "
-                "weights do not change."
-            )
-        else:
-            st.latex(
-                r"W_{new}=W_{old}+\eta ep^T"
-            )
-
-            st.write(
-                "**New W:**",
-                step["new_w"]
-            )
-
-            st.write(
-                "**New b:**",
-                step["new_b"]
-            )
-
-    with right:
-
-        fig = draw_boundary(
-            X,
-            targets,
-            step["new_w"],
-            step["new_b"],
-            "AND Decision Boundary"
-        )
-
-        st.pyplot(fig)
-
-    if st.session_state.and_step == len(steps) - 1:
-
-        st.success(
-            "Training converged! "
-            "Final W = [1, 1], b = -2."
-        )
-
-        st.latex(
-            r"p_1+p_2-2=0"
-        )
 
 
 # ============================================================
-# PART 2 — COMPLEX
+# PART 2
+# Complex Case: More linearly separable points
 # ============================================================
+def part2_complex():
 
-elif mode == "2. Complex Case — Linearly Separable":
+    print("\n")
+    print("#" * 70)
+    print("PART 2 - COMPLEX LINEARLY SEPARABLE CASE")
+    print("#" * 70)
 
-    st.header(
-        "Part 2 — Complex Linearly Separable Case"
-    )
-
-    st.write(
-        "The dataset contains more points than the AND "
-        "example, but the two classes can still be "
-        "separated by one straight line."
-    )
+    # More complex 2D data
+    #
+    # These two classes can still be separated by
+    # one straight line.
 
     class0 = np.array([
         [1.0, 1.0],
@@ -462,123 +355,67 @@ elif mode == "2. Complex Case — Linearly Separable":
     X = np.vstack((class0, class1))
 
     targets = np.array(
-        [0] * len(class0)
-        + [1] * len(class1)
+        [0] * len(class0) +
+        [1] * len(class1)
     )
 
+    # Start from zero weights
     initial_weights = [0, 0]
     initial_bias = 0
 
-    before_fig = draw_boundary(
+    weights, bias, history, errors, converged = train_perceptron(
         X,
         targets,
-        np.array(initial_weights, dtype=float),
-        initial_bias,
-        "Before Training"
+        initial_weights=initial_weights,
+        initial_bias=initial_bias,
+        learning_rate=1,
+        max_epochs=50,
+        show_steps=False
     )
 
-    st.pyplot(before_fig)
+    predictions = predict(X, weights, bias)
 
-    if st.button("▶ Train Perceptron"):
+    accuracy = np.mean(predictions == targets) * 100
 
-        (
-            weights,
-            bias,
-            records,
-            errors,
-            converged,
-            epoch,
-            history
-        ) = train_until_end(
-            X,
-            targets,
-            initial_weights,
-            initial_bias,
-            learning_rate=1,
-            max_epochs=50
-        )
+    print("\n")
+    print("=" * 50)
+    print("PART 2 FINAL RESULT")
+    print("=" * 50)
 
-        st.divider()
+    print("Final W =", weights)
+    print("Final b =", bias)
+    print(f"Accuracy = {accuracy:.2f}%")
 
-        col1, col2, col3 = st.columns(3)
+    if converged:
+        print("Result: The data are linearly separable.")
+        print("The perceptron successfully converged.")
+    else:
+        print("The perceptron did not converge.")
 
-        col1.metric(
-            "Converged",
-            "Yes" if converged else "No"
-        )
+    print("\nErrors per epoch:")
+    print(errors)
 
-        col2.metric(
-            "Epochs",
-            epoch
-        )
-
-        predictions = np.array([
-            hardlim(np.dot(weights, p) + bias)
-            for p in X
-        ])
-
-        accuracy = np.mean(
-            predictions == targets
-        ) * 100
-
-        col3.metric(
-            "Accuracy",
-            f"{accuracy:.1f}%"
-        )
-
-        st.write("### Final Parameters")
-
-        st.write("**W =**", weights)
-        st.write("**b =**", bias)
-
-        final_fig = draw_boundary(
-            X,
-            targets,
-            weights,
-            bias,
-            "After Training — Learned Decision Boundary"
-        )
-
-        st.pyplot(final_fig)
-
-        st.success(
-            "The perceptron converged because "
-            "the data are linearly separable."
-        )
-
-        st.write("### Errors per Epoch")
-
-        fig2, ax2 = plt.subplots(figsize=(7, 4))
-
-        ax2.plot(
-            range(1, len(errors) + 1),
-            errors,
-            marker="o"
-        )
-
-        ax2.set_xlabel("Epoch")
-        ax2.set_ylabel("Number of Errors")
-        ax2.set_title("Training Error")
-        ax2.grid(True)
-
-        st.pyplot(fig2)
+    plot_decision_boundary(
+        X,
+        targets,
+        weights,
+        bias,
+        "Part 2: Complex Linearly Separable Case"
+    )
 
 
 # ============================================================
-# PART 3 — XOR
+# PART 3
+# Linear Unseparable Case: XOR
 # ============================================================
+def part3_xor():
 
-else:
+    print("\n")
+    print("#" * 70)
+    print("PART 3 - LINEAR UNSEPARABLE CASE: XOR")
+    print("#" * 70)
 
-    st.header(
-        "Part 3 — Linear Unseparable Case: XOR"
-    )
-
-    st.warning(
-        "XOR cannot be perfectly separated by "
-        "one straight decision boundary."
-    )
-
+    # XOR truth table
     X = np.array([
         [0, 0],
         [0, 1],
@@ -593,116 +430,110 @@ else:
         0
     ])
 
-    st.subheader("XOR Data")
-
-    st.table({
-        "p1": [0, 0, 1, 1],
-        "p2": [0, 1, 0, 1],
-        "Target t": [0, 1, 1, 0]
-    })
-
     initial_weights = [0, 0]
     initial_bias = 0
 
-    original_fig = draw_boundary(
+    weights, bias, history, errors, converged = train_perceptron(
         X,
         targets,
-        np.array(initial_weights, dtype=float),
-        initial_bias,
-        "XOR Data"
+        initial_weights=initial_weights,
+        initial_bias=initial_bias,
+        learning_rate=1,
+        max_epochs=20,
+        show_steps=False
     )
 
-    st.pyplot(original_fig)
+    predictions = predict(X, weights, bias)
 
-    max_epochs = st.slider(
-        "Maximum Epochs",
-        min_value=5,
-        max_value=50,
-        value=20
+    print("\n")
+    print("=" * 50)
+    print("PART 3 FINAL RESULT")
+    print("=" * 50)
+
+    print("Final W =", weights)
+    print("Final b =", bias)
+
+    print("\nXOR Prediction:")
+    print("p1 p2 | Target | Prediction")
+
+    for p, t, a in zip(X, targets, predictions):
+        print(
+            f"{int(p[0])}  {int(p[1])}  |"
+            f"   {t}    |     {a}"
+        )
+
+    print("\nErrors per epoch:")
+    print(errors)
+
+    if not converged:
+        print("\nResult:")
+        print("The perceptron cannot converge for XOR.")
+        print("XOR is NOT linearly separable.")
+        print(
+            "A single straight decision boundary "
+            "cannot separate the two classes."
+        )
+
+    plot_decision_boundary(
+        X,
+        targets,
+        weights,
+        bias,
+        "Part 3: XOR - Linearly Unseparable Case"
     )
 
-    if st.button("▶ Try to Train XOR"):
+    # Plot error count
+    plt.figure(figsize=(7, 5))
 
-        (
-            weights,
-            bias,
-            records,
-            errors,
-            converged,
-            epoch,
-            history
-        ) = train_until_end(
-            X,
-            targets,
-            initial_weights,
-            initial_bias,
-            learning_rate=1,
-            max_epochs=max_epochs
-        )
+    epochs = np.arange(1, len(errors) + 1)
 
-        st.divider()
+    plt.plot(
+        epochs,
+        errors,
+        marker="o"
+    )
 
-        col1, col2 = st.columns(2)
+    plt.xlabel("Epoch")
+    plt.ylabel("Number of Errors")
+    plt.title(
+        "XOR: Perceptron Does Not Converge"
+    )
 
-        col1.metric(
-            "Converged",
-            "Yes" if converged else "No"
-        )
+    plt.xticks(epochs)
+    plt.grid(True)
+    plt.tight_layout()
 
-        col2.metric(
-            "Epochs Tried",
-            epoch
-        )
 
-        final_fig = draw_boundary(
-            X,
-            targets,
-            weights,
-            bias,
-            "XOR — Final Decision Boundary"
-        )
+# ============================================================
+# MAIN PROGRAM
+# ============================================================
+def main():
 
-        st.pyplot(final_fig)
+    print("=" * 70)
+    print("HW1 - PERCEPTRON DEMONSTRATION")
+    print("=" * 70)
 
-        st.write("### Errors per Epoch")
+    print("""
+This program demonstrates:
 
-        fig2, ax2 = plt.subplots(figsize=(7, 4))
+1. Basic Case
+   AND gate with step-by-step calculation
 
-        ax2.plot(
-            range(1, len(errors) + 1),
-            errors,
-            marker="o"
-        )
+2. Complex Case
+   More linearly separable 2D data
 
-        ax2.set_xlabel("Epoch")
-        ax2.set_ylabel("Number of Errors")
-        ax2.set_title(
-            "XOR Does Not Reach Zero Error"
-        )
+3. Linear Unseparable Case
+   XOR problem
+""")
 
-        ax2.grid(True)
+    # Run all three parts
+    part1_and()
+    part2_complex()
+    part3_xor()
 
-        st.pyplot(fig2)
+    # Show all figures
+    plt.show()
 
-        if not converged:
 
-            st.error(
-                "The perceptron did not converge."
-            )
-
-            st.write(
-                """
-                **Why?**
-
-                A single-layer perceptron creates a
-                linear decision boundary.
-
-                However, XOR is **not linearly
-                separable**. There is no single
-                straight line that can correctly
-                separate all four XOR points.
-
-                Therefore, a single perceptron
-                cannot solve XOR perfectly.
-                """
-            )
+if __name__ == "__main__":
+    main()
